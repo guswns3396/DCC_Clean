@@ -206,3 +206,46 @@ class SDQScorer(Scorer):
         df[col_name + '_total_score_missing'] = df[cols].isnull().sum(axis=1) / len(cols)
 
         self.df = df
+
+
+class CESDCScorer(Scorer):
+    def __init__(self, df, col_name):
+        super().__init__(df, col_name)
+
+    def verify_cols(self):
+        assert len(self.original_cols) == 20
+
+    def verify_range(self):
+        df = self.df
+        cols = self.original_cols
+
+        if not (df[cols].isin(range(0, 4)) | df[cols].isna()).all(axis=None):
+            print(df[
+                      ~(df[cols].isin(range(0, 4)) | df[cols].isna()).all(axis=1)
+                  ][cols])
+        assert (df[cols].isin(range(0, 4)) | df[cols].isna()).all(axis=None)
+
+    def score(self, reverse_code):
+        df = self.df.copy()
+        cols = self.original_cols
+        col_name = self.col_name
+
+        # fix reverse
+        if reverse_code:
+            reverse_idx = [x - 1 for x in [4, 8, 12, 16]]
+            reverse_code = {i: 3 - i for i in range(0, 4)}
+            df.loc[:, cols[reverse_idx]] = df.loc[:, cols[reverse_idx]].replace(reverse_code)
+
+        # score total
+        df[col_name + '_score'] = df[cols].sum(axis=1) / df[cols].notnull().sum(axis=1) * len(cols)
+
+        self.df = df
+
+    def add_missing(self):
+        df = self.df
+        col_name = self.col_name
+        cols = self.original_cols
+
+        df[col_name + '_score_missing'] = df[cols].isnull().sum(axis=1) / len(cols)
+
+        self.df = df
