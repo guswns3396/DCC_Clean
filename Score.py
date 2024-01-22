@@ -21,17 +21,15 @@ class Scorer:
     """
     Scorer base class
     """
-    def __init__(self, df, col_name, include_missing):
+    def __init__(self, df, col_name):
         """
         Constructor
         :param df: df to score containing only columns for scoring
         :param col_name: common column name
-        :param include_missing: whether to include % missing for score
         """
         self.df = df.copy()
         self.original_cols = df.columns
         self.col_name = col_name
-        self.include_missing = include_missing
 
     def score(self):
         raise NotImplementedError
@@ -47,8 +45,8 @@ class Scorer:
 
 
 class PvsARFIDScorer(Scorer):
-    def __init__(self, df, col_name, include_missing=True):
-        super().__init__(df, col_name, include_missing)
+    def __init__(self, df, col_name):
+        super().__init__(df, col_name)
 
     def verify_cols(self):
         assert len(self.df.columns) == 7
@@ -72,4 +70,63 @@ class PvsARFIDScorer(Scorer):
         cols = self.original_cols
         col_name = self.col_name
         df[col_name + '_score_missing'] = df[cols].isnull().sum(axis=1) / len(cols)
+        self.df = df
+
+
+class PARDIScorer(Scorer):
+    def __init__(self, df, col_name):
+        super().__init__(df, col_name)
+        self.col_grps = {
+            'sensory': [],
+            'interest': [],
+            'fear': [],
+            'severity': []
+        }
+
+    def verify_cols(self):
+        assert len(self.df.columns) == 48
+        # TODO: make generalizable
+        cols = self.original_cols
+        col_name = self.col_name
+        # add 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, and divide by 10
+        self.col_grps['sensory'] = cols[cols.str.match('^' + col_name + '_5[0-9]_')]
+        # add 60, 61, 62, 63, 64, 65 66, 67, 68, 69, 70, and divide by 11
+        self.col_grps['interest'] = cols[cols.str.match('^' + col_name + '_(6[0-9]|70)_')]
+        # add 71b, 72b, 73b, 74b, 75, 76, 77, 78, 79, 80, and divide by 10
+        self.col_grps['fear'] = cols[cols.str.match('^' + col_name + '_(7[5-9]|7[1-4]b|80)_')]
+        # Add: items 29a, 29b, 29c, 29d, 29e, 30, 32, 33, 34, 35 (if age 20 or below), 40, 41, 42, 43, 46, 47, 48
+        # divide by 17 (if under 20) or 16 (if over 20)
+        self.col_grps['severity'] = cols[cols.str.match('^' + col_name + '_(29[abcde]|3[02-5]|4[0-36-8])_')]
+        assert len(self.col_grps['sensory']) == 10
+        assert len(self.col_grps['interest']) == 11
+        assert len(self.col_grps['fear']) == 10
+        assert len(self.col_grps['severity']) == 17
+
+    def verify_range(self):
+        df = self.df
+        cols = self.original_cols
+        if not (df[cols].isin(range(0, 7)) | df[cols].isna()).all(axis=None):
+            print(df[
+                        ~(df[cols].isin(range(0, 7)) | df[cols].isna()).all(axis=1)
+                    ][['record_id', 'redcap_event_name', *cols]])
+        assert (df[cols].isin(range(0, 7)) | df[cols].isna()).all(axis=None)
+
+    def score(self):
+        df = self.df
+        col_name = self.col_name
+
+        for grp in self.col_grps:
+            cols = self.col_grps[grp]
+            df[col_name + '_' + grp + '_score'] = df[cols].sum(axis=1) / df[cols].notnull().sum(axis=1)
+
+        self.df = df
+
+    def add_missing(self):
+        df = self.df
+        col_name = self.col_name
+
+        for grp in self.col_grps:
+            cols = self.col_grps[grp]
+            df[col_name + '_' + grp + '_score_missing'] = df[cols].isnull().sum(axis=1) / len(cols)
+
         self.df = df
