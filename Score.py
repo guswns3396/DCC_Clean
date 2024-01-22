@@ -27,7 +27,9 @@ class Scorer:
         :param df: subset of data rows (excluding events that do not need to be scored)
         :param col_name: common column name
         """
-        self.df = df[df.columns[df.columns.str.match('^' + col_name + '_')]]
+        cols = df[df.columns[df.columns.str.match('^' + col_name + '_')]]
+        cols = cols[~cols.str.endswith('_complete')]
+        self.df = df[cols].copy()
         self.original_cols = self.df.columns
         self.col_name = col_name
 
