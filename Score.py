@@ -21,14 +21,14 @@ class Scorer:
     """
     Scorer base class
     """
-    def __init__(self, df, col_name):
+    def __init__(self, data, col_name):
         """
         Constructor
         :param df: df to score containing only columns for scoring
         :param col_name: common column name
         """
-        self.df = df.copy()
-        self.original_cols = df.columns
+        self.df = data[data.columns[data.columns.str.match('^' + col_name + '_')]]
+        self.original_cols = self.df.columns
         self.col_name = col_name
 
     def score(self):
@@ -45,8 +45,8 @@ class Scorer:
 
 
 class PvsARFIDScorer(Scorer):
-    def __init__(self, df, col_name):
-        super().__init__(df, col_name)
+    def __init__(self, data, col_name):
+        super().__init__(data, col_name)
 
     def verify_cols(self):
         assert len(self.df.columns) == 7
@@ -74,8 +74,8 @@ class PvsARFIDScorer(Scorer):
 
 
 class PARDIScorer(Scorer):
-    def __init__(self, df, col_name):
-        super().__init__(df, col_name)
+    def __init__(self, data, col_name):
+        super().__init__(data, col_name)
         self.col_grps = {
             'sensory': [],
             'interest': [],
@@ -84,7 +84,6 @@ class PARDIScorer(Scorer):
         }
 
     def verify_cols(self):
-        assert len(self.df.columns) == 48
         # TODO: make generalizable
         cols = self.original_cols
         col_name = self.col_name
@@ -104,12 +103,13 @@ class PARDIScorer(Scorer):
 
     def verify_range(self):
         df = self.df
-        cols = self.original_cols
-        if not (df[cols].isin(range(0, 7)) | df[cols].isna()).all(axis=None):
-            print(df[
-                        ~(df[cols].isin(range(0, 7)) | df[cols].isna()).all(axis=1)
-                    ][['record_id', 'redcap_event_name', *cols]])
-        assert (df[cols].isin(range(0, 7)) | df[cols].isna()).all(axis=None)
+        for grp in self.col_grps:
+            cols = self.col_grps[grp]
+            if not (df[cols].isin(range(0, 7)) | df[cols].isna()).all(axis=None):
+                print(df[
+                            ~(df[cols].isin(range(0, 7)) | df[cols].isna()).all(axis=1)
+                        ][cols])
+            assert (df[cols].isin(range(0, 7)) | df[cols].isna()).all(axis=None)
 
     def score(self):
         df = self.df
@@ -130,3 +130,8 @@ class PARDIScorer(Scorer):
             df[col_name + '_' + grp + '_score_missing'] = df[cols].isnull().sum(axis=1) / len(cols)
 
         self.df = df
+
+
+class SDQScorer(Scorer):
+    def __init__(self, data, col_name):
+        super().__init__(data, col_name)
