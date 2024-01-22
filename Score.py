@@ -56,11 +56,11 @@ class PvsARFIDScorer(Scorer):
     def verify_range(self):
         assert (self.df.isin(range(1, 6)) | self.df.isna()).all(axis=None)
 
-    def score(self, reverse_coded):
+    def score(self, reverse_code):
         df = self.df.copy()
         cols = self.original_cols
         col_name = self.col_name
-        if reverse_coded:
+        if reverse_code:
             reverse_idx = [x - 1 for x in [1, 2, 4, 6]]
             reverse_code = {i: 6 - i for i in range(1, 6)}
             df.loc[:, cols[reverse_idx]] = df.loc[:, cols[reverse_idx]].replace(reverse_code)
@@ -137,4 +137,72 @@ class PARDIScorer(Scorer):
 class SDQScorer(Scorer):
     def __init__(self, df, col_name):
         super().__init__(df, col_name)
+        self.col_grps = {
+            'emotion': [x - 1 for x in [3, 8, 13, 16, 24]],
+            'conduct': [x - 1 for x in [5, 7, 12, 18, 22]],
+            'hyperactivity': [x - 1 for x in [2, 10, 15, 21, 25]],
+            'peer': [x - 1 for x in [6, 11, 14, 19, 23]],
+            'prosocial': [x - 1 for x in [1, 4, 9, 17, 20]]
+        }
 
+    def verify_cols(self):
+        assert len(self.original_cols) == 25
+
+    def verify_range(self):
+        df = self.df
+        cols = self.original_cols
+
+        if not (df[cols].isin(range(0, 3)) | df[cols].isna()).all(axis=None):
+            print(df[
+                      ~(df[cols].isin(range(0, 3)) | df[cols].isna()).all(axis=1)
+                  ][cols])
+        assert (df[cols].isin(range(0, 3)) | df[cols].isna()).all(axis=None)
+
+    def score(self, reverse_code):
+        df = self.df.copy()
+        cols = self.original_cols
+        col_name = self.col_name
+
+        # fix reverse
+        if reverse_code:
+            reverse_idx = [x - 1 for x in [7, 11, 14, 21, 25]]
+            reverse_code = {i: 2 - i for i in range(0, 3)}
+            df.loc[:, cols[reverse_idx]] = df.loc[:, cols[reverse_idx]].replace(reverse_code)
+
+        col_grps = self.col_grps
+        # score by group
+        for grp in col_grps:
+            cols = df.columns[col_grps[grp]]
+            df[col_name + '_' + grp + '_score'] = df[cols].sum(axis=1) / df[cols].notnull().sum(axis=1) * len(cols)
+
+        # score total
+        col_idx = []
+        for grp in col_grps:
+            if grp == 'prosocial':
+                continue
+            col_idx += col_grps[grp]
+        cols = df.columns[col_idx]
+        df[col_name + '_total_score'] = df[cols].sum(axis=1) / df[cols].notnull().sum(axis=1) * len(cols)
+
+        self.df = df
+
+    def add_missing(self):
+        df = self.df
+        col_name = self.col_name
+        col_grps = self.col_grps
+
+        # subscale missing
+        for grp in col_grps:
+            cols = df.columns[col_grps[grp]]
+            df[col_name + '_' + grp + '_score_missing'] = df[cols].isnull().sum(axis=1) / len(cols)
+
+        # total missing
+        col_idx = []
+        for grp in col_grps:
+            if grp == 'prosocial':
+                continue
+            col_idx += col_grps[grp]
+        cols = df.columns[col_idx]
+        df[col_name + '_total_score_missing'] = df[cols].isnull().sum(axis=1) / len(cols)
+
+        self.df = df
