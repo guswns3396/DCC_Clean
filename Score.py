@@ -21,13 +21,13 @@ class Scorer:
     """
     Scorer base class
     """
-    def __init__(self, data, col_name):
+    def __init__(self, df, col_name):
         """
         Constructor
-        :param df: df to score containing only columns for scoring
+        :param df: subset of data rows (excluding events that do not need to be scored)
         :param col_name: common column name
         """
-        self.df = data[data.columns[data.columns.str.match('^' + col_name + '_')]]
+        self.df = df[df.columns[df.columns.str.match('^' + col_name + '_')]]
         self.original_cols = self.df.columns
         self.col_name = col_name
 
@@ -45,8 +45,8 @@ class Scorer:
 
 
 class PvsARFIDScorer(Scorer):
-    def __init__(self, data, col_name):
-        super().__init__(data, col_name)
+    def __init__(self, df, col_name):
+        super().__init__(df, col_name)
 
     def verify_cols(self):
         assert len(self.df.columns) == 7
@@ -55,7 +55,7 @@ class PvsARFIDScorer(Scorer):
         assert (self.df.isin(range(1, 6)) | self.df.isna()).all(axis=None)
 
     def score(self, reverse_coded):
-        df = self.df
+        df = self.df.copy()
         cols = self.original_cols
         col_name = self.col_name
         if reverse_coded:
@@ -66,7 +66,7 @@ class PvsARFIDScorer(Scorer):
         self.df = df
 
     def add_missing(self):
-        df = self.df
+        df = self.df.copy()
         cols = self.original_cols
         col_name = self.col_name
         df[col_name + '_score_missing'] = df[cols].isnull().sum(axis=1) / len(cols)
@@ -74,8 +74,8 @@ class PvsARFIDScorer(Scorer):
 
 
 class PARDIScorer(Scorer):
-    def __init__(self, data, col_name):
-        super().__init__(data, col_name)
+    def __init__(self, df, col_name):
+        super().__init__(df, col_name)
         self.col_grps = {
             'sensory': [],
             'interest': [],
@@ -133,5 +133,6 @@ class PARDIScorer(Scorer):
 
 
 class SDQScorer(Scorer):
-    def __init__(self, data, col_name):
-        super().__init__(data, col_name)
+    def __init__(self, df, col_name):
+        super().__init__(df, col_name)
+
