@@ -160,19 +160,19 @@ class SDQScorer(Scorer):
 
     def score(self, reverse_code):
         df = self.df.copy()
-        cols = self.original_cols
+        cols_ori = self.original_cols
         col_name = self.col_name
 
         # fix reverse
         if reverse_code:
             reverse_idx = [x - 1 for x in [7, 11, 14, 21, 25]]
             reverse_code = {i: 2 - i for i in range(0, 3)}
-            df.loc[:, cols[reverse_idx]] = df.loc[:, cols[reverse_idx]].replace(reverse_code)
+            df.loc[:, cols_ori[reverse_idx]] = df.loc[:, cols_ori[reverse_idx]].replace(reverse_code)
 
         col_grps = self.col_grps
         # score by group
         for grp in col_grps:
-            cols = df.columns[col_grps[grp]]
+            cols = cols_ori[col_grps[grp]]
             df[col_name + '_' + grp + '_score'] = df[cols].sum(axis=1) / df[cols].notnull().sum(axis=1) * len(cols)
 
         # score total
@@ -181,7 +181,7 @@ class SDQScorer(Scorer):
             if grp == 'prosocial':
                 continue
             col_idx += col_grps[grp]
-        cols = df.columns[col_idx]
+        cols = cols_ori[col_idx]
         df[col_name + '_total_score'] = df[cols].sum(axis=1) / df[cols].notnull().sum(axis=1) * len(cols)
 
         self.df = df
@@ -190,10 +190,11 @@ class SDQScorer(Scorer):
         df = self.df
         col_name = self.col_name
         col_grps = self.col_grps
+        cols_ori = self.original_cols
 
         # subscale missing
         for grp in col_grps:
-            cols = df.columns[col_grps[grp]]
+            cols = cols_ori[col_grps[grp]]
             df[col_name + '_' + grp + '_score_missing'] = df[cols].isnull().sum(axis=1) / len(cols)
 
         # total missing
@@ -202,7 +203,7 @@ class SDQScorer(Scorer):
             if grp == 'prosocial':
                 continue
             col_idx += col_grps[grp]
-        cols = df.columns[col_idx]
+        cols = cols_ori[col_idx]
         df[col_name + '_total_score_missing'] = df[cols].isnull().sum(axis=1) / len(cols)
 
         self.df = df
@@ -277,10 +278,11 @@ class PSQScorer(Scorer):
         df = self.df.copy()
         col_name = self.col_name
         col_grps = self.col_grps
+        cols_ori = self.original_cols
 
         # score by group
         for grp in col_grps:
-            cols = df.columns[col_grps[grp]]
+            cols = cols_ori[col_grps[grp]]
             df[col_name + '_' + grp + '_score'] = df[cols].sum(axis=1) / df[cols].notnull().sum(axis=1)
 
         self.df = df
@@ -289,10 +291,12 @@ class PSQScorer(Scorer):
         df = self.df
         col_name = self.col_name
         col_grps = self.col_grps
+        cols_ori = self.original_cols
 
         # subscale missing
         for grp in col_grps:
-            cols = df.columns[col_grps[grp]]
+            cols = cols_ori[col_grps[grp]]
             df[col_name + '_' + grp + '_score_missing'] = df[cols].isnull().sum(axis=1) / len(cols)
 
         self.df = df
+
