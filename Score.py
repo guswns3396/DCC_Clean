@@ -300,3 +300,87 @@ class PSQScorer(Scorer):
 
         self.df = df
 
+
+class SF36Scorer(Scorer):
+    def __init__(self, df, col_name):
+        super().__init__(df, col_name)
+        self.likert_grps = {
+            'likert5r': [x - 1 for x in [1, 2, 20, 22, 34, 36]],
+            'likert3': [x - 1 for x in [3, 4, 5, 6, 7, 8, 9, 10, 11, 12]],
+            'likert2': [x - 1 for x in [13, 14, 15, 16, 17, 18, 19]],
+            'likert6r': [x - 1 for x in [21, 23, 26, 27, 30]],
+            'likert6': [x - 1 for x in [24, 25, 28, 29, 31]],
+            'likert5': [x - 1 for x in [32, 33, 35]]
+        }
+        self.col_grps = {
+            'physfunc': [x - 1 for x in [3, 4, 5, 6, 7, 8, 9, 10, 11, 12]],
+            'limphys': [x - 1 for x in [13, 14, 15, 16]],
+            'limemo': [x - 1 for x in [17, 18, 19]],
+            'energy': [x - 1 for x in [23, 27, 29, 31]],
+            'emowell': [x - 1 for x in [24, 25, 26, 28, 30]],
+            'socfunc': [x - 1 for x in [20, 32]],
+            'pain': [x - 1 for x in [21, 22]],
+            'genheal': [x - 1 for x in [1, 33, 34, 35, 36]]
+        }
+
+    def verify_cols(self):
+        assert len(self.original_cols) == 36
+
+    def verify_range(self):
+        df = self.df
+        cols = self.original_cols
+        likert_grps = self.likert_grps
+
+        for grp in likert_grps:
+            if 'likert5' in grp:
+                assert (df[cols[likert_grps[grp]]].isin([x for x in range(1, 6)]) | df[cols].isna()).all(
+                    axis=None)
+            elif 'likert3' in grp:
+                assert (df[cols[likert_grps[grp]]].isin([x for x in range(1, 4)]) | df[cols].isna()).all(
+                    axis=None)
+            elif 'likert2' in grp:
+                assert (df[cols[likert_grps[grp]]].isin([x for x in range(1, 3)]) | df[cols].isna()).all(
+                    axis=None)
+            elif 'likert6' in grp:
+                assert (df[cols[likert_grps[grp]]].isin([x for x in range(1, 7)]) | df[cols].isna()).all(
+                    axis=None)
+
+    def score(self):
+        df = self.df.copy()
+        col_name = self.col_name
+        col_grps = self.col_grps
+        likert_grps = self.likert_grps
+        cols_ori = self.original_cols
+
+        # recode
+        recode_map = {
+            'likert5r': {x: 100 - (25 * (x - 1)) for x in range(1, 6)},
+            'likert3': {x: 50 * (x - 1) for x in range(1, 4)},
+            'likert2': {x: 100 * (x - 1) for x in range(1, 3)},
+            'likert6r': {x: 100 - (20 * (x - 1)) for x in range(1, 7)},
+            'likert6': {x: 20 * (x - 1) for x in range(1, 7)},
+            'likert5': {x: (25 * (x - 1)) for x in range(1, 6)}
+        }
+        for grp in likert_grps:
+            cols = cols_ori[likert_grps[grp]]
+            df[cols] = df[cols].replace(recode_map[grp])
+
+        # subscales
+        for grp in col_grps:
+            cols = cols_ori[col_grps[grp]]
+            df[col_name + '_' + grp + '_score'] = df[cols].sum(axis=1) / df[cols].notnull().sum(axis=1)
+
+        self.df = df
+
+    def add_missing(self):
+        df = self.df
+        col_name = self.col_name
+        col_grps = self.col_grps
+        cols_ori = self.original_cols
+
+        # subscale missing
+        for grp in col_grps:
+            cols = cols_ori[col_grps[grp]]
+            df[col_name + '_' + grp + '_score_missing'] = df[cols].isnull().sum(axis=1) / len(cols)
+
+        self.df = df
