@@ -176,12 +176,12 @@ class SDQScorer(Scorer):
             df[col_name + '_' + grp + '_score'] = df[cols].sum(axis=1) / df[cols].notnull().sum(axis=1) * len(cols)
 
         # score total
-        col_idx = []
+        cols = []
         for grp in col_grps:
             if grp == 'prosocial':
                 continue
-            col_idx += col_grps[grp]
-        cols = cols_ori[col_idx]
+            cols += col_grps[grp]
+        cols = cols_ori[cols]
         df[col_name + '_total_score'] = df[cols].sum(axis=1) / df[cols].notnull().sum(axis=1) * len(cols)
 
         self.df = df
@@ -198,12 +198,12 @@ class SDQScorer(Scorer):
             df[col_name + '_' + grp + '_score_missing'] = df[cols].isnull().sum(axis=1) / len(cols)
 
         # total missing
-        col_idx = []
+        cols = []
         for grp in col_grps:
             if grp == 'prosocial':
                 continue
-            col_idx += col_grps[grp]
-        cols = cols_ori[col_idx]
+            cols += col_grps[grp]
+        cols = cols_ori[cols]
         df[col_name + '_total_score_missing'] = df[cols].isnull().sum(axis=1) / len(cols)
 
         self.df = df
@@ -384,3 +384,64 @@ class SF36Scorer(Scorer):
             df[col_name + '_' + grp + '_score_missing'] = df[cols].isnull().sum(axis=1) / len(cols)
 
         self.df = df
+
+
+class RCMASScorer(Scorer):
+    def __init__(self, df, col_name):
+        super().__init__(df, col_name)
+        self.col_grps = {
+            'phy': [x - 1 for x in [1, 5, 7]],
+            'wor': [x - 1 for x in [2, 3, 6, 8]],
+            'soc': [x - 1 for x in [4, 9, 10]],
+        }
+
+    def verify_cols(self):
+        assert len(self.original_cols) == 10
+
+    def verify_range(self):
+        df = self.df
+        cols = self.original_cols
+
+        if not (df[cols].isin(range(0, 2)) | df[cols].isna()).all(axis=None):
+            print(df[
+                      ~(df[cols].isin(range(0, 2)) | df[cols].isna()).all(axis=1)
+                  ][cols])
+        assert (df[cols].isin(range(0, 2)) | df[cols].isna()).all(axis=None)
+
+    def score(self):
+        df = self.df.copy()
+        col_name = self.col_name
+        col_grps = self.col_grps
+        cols_ori = self.original_cols
+
+        # score by group
+        for grp in col_grps:
+            cols = cols_ori[col_grps[grp]]
+            df[col_name + '_' + grp + '_score'] = df[cols].sum(axis=1) / df[cols].notnull().sum(axis=1) * len(cols)
+
+        # score total
+        cols = []
+        for grp in col_grps:
+            cols += col_grps[grp]
+        cols = cols_ori[cols]
+        df[col_name + '_total_score'] = df[cols].sum(axis=1) / df[cols].notnull().sum(axis=1) * len(cols)
+
+        self.df = df
+
+    def add_missing(self):
+        df = self.df
+        col_name = self.col_name
+        col_grps = self.col_grps
+        cols_ori = self.original_cols
+
+        # subscale missing
+        for grp in col_grps:
+            cols = cols_ori[col_grps[grp]]
+            df[col_name + '_' + grp + '_score_missing'] = df[cols].isnull().sum(axis=1) / len(cols)
+
+        # total missing
+        cols = []
+        for grp in col_grps:
+            cols += col_grps[grp]
+        cols = cols_ori[cols]
+        df[col_name + '_total_score_missing'] = df[cols].isnull().sum(axis=1) / len(cols)
