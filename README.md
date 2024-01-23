@@ -5,3 +5,4 @@
 * tests
 * verify EBW%
 * Clean.py
+* fix PARDI severity missing
